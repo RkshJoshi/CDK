@@ -23,7 +23,7 @@ const sharedResources = new sharedResourcesStack(app, "sharedResourcesStack", {
   env: { account: envConfigs.accountId, region: envConfigs.region },
   accountName: envConfigs.accountName,
   envName: envConfigs.envName,
-  kmsKeyId: ecrKms.kmsKeyId,
+  kmsKey: ecrKms.kmsKey,
 });
 
 sharedResources.node.addDependency(ecrKms);

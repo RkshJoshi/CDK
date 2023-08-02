@@ -12,7 +12,7 @@ export interface baseProperties extends cdk.StackProps {
 }
 
 export class ecrKmsStack extends cdk.Stack {
-  public readonly kmsKeyId: kms.IKey;
+  public readonly kmsKey: kms.IKey;
   public service_name: string[] = ["ckan", "solr", "datapusher"];
   constructor(scope: Construct, id: string, props: baseProperties) {
     super(scope, id, props);
@@ -48,7 +48,7 @@ export class ecrKmsStack extends cdk.Stack {
       ],
     });
 
-    const kmskey = new kms.Key(this, "ckankey", {
+    this.kmsKey = new kms.Key(this, "ckankey", {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       alias: "alias/ckankey",
       policy: kmsKeyPolicy,
@@ -58,7 +58,7 @@ export class ecrKmsStack extends cdk.Stack {
       const repo = new ecr.Repository(this, `${service}-repo`, {
         imageTagMutability: ecr.TagMutability.IMMUTABLE,
         repositoryName: `${service}-repo-${props.envName}`,
-        encryptionKey: kmskey,
+        encryptionKey: this.kmsKey,
         autoDeleteImages: true,
         imageScanOnPush: true,
         removalPolicy: cdk.RemovalPolicy.DESTROY,

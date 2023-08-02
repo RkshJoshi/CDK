@@ -7,21 +7,22 @@ import * as kms from "aws-cdk-lib/aws-kms";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as efs from "aws-cdk-lib/aws-efs";
 import * as rds from "aws-cdk-lib/aws-rds";
+import * as elasticache from "aws-cdk-lib/aws-elasticache";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export interface baseProperties extends cdk.StackProps {
   accountName: string;
   envName: string;
-  kmsKeyId: kms.IKey;
+  kmsKey: kms.IKey;
 }
 
 export class sharedResourcesStack extends cdk.Stack {
-  private kmsKeyId: kms.IKey;
+  //   private kmsKeyId: kms.IKey;
   constructor(scope: Construct, id: string, props: baseProperties) {
     super(scope, id, props);
 
     // make the kmskey accessible
-    const kmsKeyId = props.kmsKeyId;
+    // const kmsKey = props.kmsKeyId;
 
     const d_vpc = ec2.Vpc.fromLookup(this, "deployVPC", {
       vpcName: `*${props.env?.account}*`,
@@ -29,7 +30,12 @@ export class sharedResourcesStack extends cdk.Stack {
 
     const privateSubnets = d_vpc.publicSubnets; //TODO: change this to private subnets, I don't have private subnets in default vpc
 
-    console.log(privateSubnets);
+    const privateSubnetIds: string[] = [];
+
+    privateSubnets.forEach((e) => {
+      privateSubnetIds.push(e.subnetId);
+    });
+    // console.log(privateSubnetIds);
 
     const efsSecurityGroup = new ec2.SecurityGroup(this, "efsSG", {
       vpc: d_vpc,
@@ -41,7 +47,7 @@ export class sharedResourcesStack extends cdk.Stack {
       vpc: d_vpc,
       enableAutomaticBackups: true,
       fileSystemName: `ckan-efs-${props.envName}`,
-      kmsKey: kmsKeyId,
+      kmsKey: props.kmsKey,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       securityGroup: efsSecurityGroup,
     });
@@ -121,5 +127,49 @@ export class sharedResourcesStack extends cdk.Stack {
         rds.ClusterInstance.serverlessV2("reader1", { scaleWithWriter: true }),
       ],
     });
+    // Redis cluster
+    const ckanRedisSG = new ec2.SecurityGroup(this, "redisSG", {
+      vpc: d_vpc,
+      allowAllOutbound: true,
+      description: "Security Group for the Redis cluster",
+    });
+
+    const ckanRedisPG = new elasticache.CfnParameterGroup(this, "redisPG", {
+      cacheParameterGroupFamily: "redis7",
+      description: "ckan redis Parameter group",
+    });
+
+    const ckanRedisSubnetGroup = new elasticache.CfnSubnetGroup(
+      this,
+      "redisSubnetGroup",
+      {
+        description: "ckan redis subnet group",
+        subnetIds: privateSubnetIds,
+        cacheSubnetGroupName: "ckan-redis-sg",
+      }
+    );
+
+    const ckanRedisCluster = new elasticache.CfnReplicationGroup(
+      this,
+      "redisreplicationgroup",
+      {
+        replicationGroupDescription: "ckan-redis-cluster",
+        atRestEncryptionEnabled: true,
+        automaticFailoverEnabled: true,
+        cacheNodeType: "cache.t3.small",
+        multiAzEnabled: true,
+        cacheParameterGroupName: ckanRedisPG.cacheParameterGroupFamily,
+        cacheSubnetGroupName: ckanRedisSubnetGroup.ref,
+        engine: "Redis",
+        engineVersion: "7",
+        kmsKeyId: props.kmsKey.keyId.toString(),
+        replicasPerNodeGroup: 1,
+        transitEncryptionEnabled: true,
+        securityGroupIds: [ckanRedisSG.securityGroupId],
+        port: 6379,
+        snapshotRetentionLimit: 30,
+        preferredMaintenanceWindow: "sat:16:00-sat:16:30",
+      }
+    );
   }
 }
