@@ -171,5 +171,13 @@ export class sharedResourcesStack extends cdk.Stack {
         preferredMaintenanceWindow: "sat:16:00-sat:16:30",
       }
     );
+
+    new cdk.CfnOutput(this, `${this.stackName}CacheEndpointUrl`, {
+      value: ckanRedisCluster.attrReadEndPointAddresses,
+    });
+
+    new cdk.CfnOutput(this, `${this.stackName}CachePort`, {
+      value: ckanRedisCluster.attrPrimaryEndPointPort,
+    });
   }
 }

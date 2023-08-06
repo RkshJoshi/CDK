@@ -3,6 +3,7 @@ import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
 import { ecrKmsStack } from "../lib/ecr-kms-stack";
 import { sharedResourcesStack } from "../lib/shared-resources-stack";
+import { ecsInfraStack } from "../lib/ecs-infra-stack";
 
 const app = new cdk.App();
 
@@ -26,4 +27,9 @@ const sharedResources = new sharedResourcesStack(app, "sharedResourcesStack", {
   kmsKey: ecrKms.kmsKey,
 });
 
+const ecsInfra = new ecsInfraStack(app, "ecsInfraStack", {
+  env: { account: envConfigs.accountId, region: envConfigs.region },
+  accountName: envConfigs.accountName,
+  envName: envConfigs.envName,
+});
 sharedResources.node.addDependency(ecrKms);

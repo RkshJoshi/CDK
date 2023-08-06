@@ -69,12 +69,11 @@ export class ecrKmsStack extends cdk.Stack {
         rulePriority: 1,
         tagStatus: ecr.TagStatus.ANY,
       });
+      new cdk.CfnOutput(this, `repoURI-${service}`, {
+        value: repo.repositoryName,
+        description: `Repo URI of ${service}`,
+        exportName: `${service}RepoName`,
+      });
     });
-
-    // new cdk.CfnOutput(this, "kmsKeyId", {
-    //   value: kmskey.keyId,
-    //   description: "The KeyId of the KMS key",
-    //   exportName: `kms-${props.envName}-keyId`,
-    // });
   }
 }
